@@ -1,0 +1,18 @@
+{
+  "name": "githubclapp",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bin/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Mariano Manuel Torrado Sanchez (https://github.com/MaToSan24)",
+  "license": "ISC",
+  "bin": {
+    "hello": "./bin/index.js"
+  },
+  "dependencies": {
+    "axios": "^0.21.1",
+    "yargs": "^13.2.4"
+  }
+}
