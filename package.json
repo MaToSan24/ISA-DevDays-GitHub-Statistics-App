@@ -9,7 +9,7 @@
   "author": "Mariano Manuel Torrado Sanchez (https://github.com/MaToSan24)",
   "license": "ISC",
   "bin": {
-    "hello": "./bin/index.js"
+    "githubinfo": "./bin/index.js"
   },
   "dependencies": {
     "axios": "^0.21.1",

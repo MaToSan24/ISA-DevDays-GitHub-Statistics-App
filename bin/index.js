@@ -3,113 +3,131 @@
 const yargs = require("yargs");
 const axios = require("axios");
 
-const cabeceras = { headers: { Accept: "application/vnd.github.v3+json" , Authorization: "Basic" } };
+// He registrado la aplicacion para usar un token oauth
+const cabeceras = { headers: { Accept: "application/vnd.github.v3+json", Authorization: "token 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" } };
 
 const options = yargs
-    .usage("Usage: -n <name>")
-    .option("n", { alias: "name", describe: "Tu nombre", type: "string" })
-    .option("s", { alias: "search", describe: "URL de una organizacion de GitHub", type: "string", demandOption: true })
+    .usage("Usage: -s <search>")
+    .option("s", { alias: "search", describe: "Proporciona estadisticas de una organizacion en GitHub", type: "string", demandOption: true })
     .argv;
 
-
-if (options.name) {
-    const greeting = `Hola, ${options.name}!`;
-    console.log(greeting);
-}
-
-if (options.search) {
+if (!options.search || !options.search.includes("https://github.com/")) {
+    console.log("Por favor, introduce una URL perteneciente a una organizacion de GitHub.");
+} else {
     console.log(`Buscando repositorios para la organizacion con URL: ${options.search}...`)
-}
 
-const urlEntrada = options.search; // Lo de escape no se si hara falta aqui o en la url
+    const urlEntrada = options.search;
+    const org = urlEntrada.split("https://github.com/")[1];
+    const urlOrg = "https://api.github.com/orgs/" + org;
 
-const org = urlEntrada.split("https://github.com/")[1]
-const urlOrg = "https://api.github.com/orgs/" + org;
-
-// orgRepos.map(repo => axios.get("https://api.github.com/repos/" + org + "/" + repo));
-
-// let usersRequest = await axios.get('https://api.github.com/orgs/governify/members')
-// let users = usersRequest.data;
-// let reposRequest = axios.get("https://api.github.com/orgs/" + org + "/repos", cabeceras).catch(err => console.log("Ha ocurrido un error al obtener los repositorios: " +
-// "\nURL: https://api.github.com/orgs/" + org + "/repos" + "\nError: " + err));
-
-// let orgRepos = [];
-// let listaIssues = [];
-// let listaCommits = [];
-
-// reposRequest.then(res => {
-//         res.data.map(repo => {
-//             if (!repo.private == true) {
-//                 // console.log(repo.name);
-//                 orgRepos.push(repo);
-//             }
-//         });
-//     });
-
-obtenerEstadisticas();
-
-async function obtenerEstadisticas() {
-
-    // let reposRequest = axios.get("https://api.github.com/orgs/" + org + "/repos").catch(err => console.log("Ha ocurrido un error al obtener los repositorios: " + err));
-    // let orgRepos = [];
-    // let listaIssues = [];
-    // let listaCommits = [];
-
-    // reposRequest.then(res => {
-    //     res.data.map(repo => {
-    //         if (!repo.private == true) {
-    //             // console.log(repo.name);
-    //             orgRepos.push(repo);
-    //         }
-    //     });
-    // });
-
-    let reposRequest = await axios.get("https://api.github.com/orgs/" + org + "/repos", cabeceras).catch(err => console.log("Ha ocurrido un error al obtener los repositorios: " + err));
+    let orgRequest = [];
     let orgRepos = [];
-    let listaIssues = [];
-    let listaCommits = [];
 
-    reposRequest.data.map(repo => {
-        if (!repo.private == true) {
-            // console.log(repo.name);
-            orgRepos.push(repo);
-        }
-    });
+    obtenerEstadisticas();
 
-    // await Promise.all(
-    await orgRepos.map(async (repo) => {
-        let issueRequest = await axios.get("https://api.github.com/repos/" + org + "/" + repo.name, cabeceras).catch(err => { // issue => issue.open_issues_count
-            console.error("Error al obtener las issues del repositorio '" + repo.name + "' de la organizacion '" + org + "'");
-        });
+    async function obtenerEstadisticas() {
 
-        let commitRequest = await axios.get("https://api.github.com/repos/" + org + "/" + repo.name + "/commits", cabeceras).catch(err => {
-            console.error("Error al obtener los commits del repositorio '" + repo.name + "' de la organizacion '" + org + "'");
-        });
+        try {
+            let reposRequests = [];
+            orgRequest = await axios.get(urlOrg, cabeceras);
+            let reposRequest = await axios.get("https://api.github.com/orgs/" + org + "/repos?per_page=100&page=1", cabeceras).catch(err => {
+                console.error("Ha ocurrido un error al obtener los repositorios de la organizacion '" + org + "'. Error: " + err);
+            });
 
-        listaIssues.push(issueRequest.open_issues_count);
-        listaCommits.push(commitRequest);
-    });
+            reposRequests.push(reposRequest);
 
-    await axios.get(urlOrg, cabeceras)
-        .then(res => {
-            if (options.search) {
-                console.log("Buscando URL: " + urlOrg);
-                console.log(res.data);
-                console.log("Nombre: " + res.data.name);
-                console.log("Descripción: " + res.data.description);
-                console.log("Enlace: " + res.data.blog);
-                console.log("\nRepositorios: " + orgRepos.map((repo, i) => {
-                    console.log("\t"+repo);
-                    console.log("\t\tNumero de Issues abiertas: " + listaIssues[i]);
-                    console.log("\t\tNumero de commits: "+ listaCommits[i]);
-                }));
-                console.log("\n\nTotal: " + res.data.name);
+            if (reposRequest.headers.link) {
+                let numPaginas = parseInt(reposRequest.headers.link.split(',')[1].split('>')[0].split('&page=')[1]);
 
-
-            } else {
-                console.log("Por favor, introduce una URL perteneciente a una organizacion de GitHub.");
+                for (let i = 2; i <= numPaginas; i++) {
+                    let reposRequestPagI = await axios.get("https://api.github.com/orgs/" + org + "/repos?per_page=100&page=" + i, cabeceras).catch(err => {
+                        console.error("Ha ocurrido un error al obtener los repositorios '" + repo.name + "' de la organizacion '" + org + "'. Error: " + err);
+                    });
+                    reposRequests.push(reposRequestPagI);
+                }
             }
-        });
 
-    //);
+            reposRequests.map(repoReq => {
+                Promise.all(repoReq.data.map(async repo => {
+
+                    let resultRepo = {
+                        nombre: repo.name,
+                        issuesAbiertas: 0,
+                        issuesTotales: 0,
+                        commits: 0
+                    }
+
+                    let issueRequests = [];
+
+                    let issueRequest = await axios.get("https://api.github.com/repos/" + org + "/" + repo.name + "/issues?state=all&per_page=100&page=1", cabeceras).catch(err => {
+                        console.error("Error al obtener las issues del repositorio '" + repo.name + "' de la organizacion '" + org + "'. Error: " + err);
+                    });
+
+                    issueRequests.push(issueRequest);
+
+
+                    if (issueRequest.headers.link) {
+                        let numPaginas = parseInt(issueRequest.headers.link.split(',')[1].split('>')[0].split('&page=')[1]);
+
+                        for (let i = 2; i <= numPaginas; i++) {
+                            let issueRequestPagI = await axios.get("https://api.github.com/repos/" + org + "/" + repo.name + "/issues?state=all&per_page=100&page=" + i, cabeceras).catch(err => {
+                                console.error("Error al obtener las issues del repositorio '" + repo.name + "' de la organizacion '" + org + "'. Error: " + err);
+                            });
+                            issueRequests.push(issueRequestPagI);
+                        }
+                    }
+
+                    let commitRequest = await axios.get("https://api.github.com/repos/" + org + "/" + repo.name + "/commits?per_page=1", cabeceras).catch(err => {
+                        console.error("Error al obtener los commits del repositorio '" + repo.name + "' de la organizacion '" + org + "'. (Probablemente el repositorio"
+                            + " este vacio) Error: " + err);
+                    });
+
+                    try {
+                        resultRepo.commits = parseInt(commitRequest.headers.link.split(',')[1].split('>')[0].split('&page=')[1]);
+                    } catch (err) {
+
+                    }
+
+                    if (!repo.private) {
+                        issueRequests.map(issReq => {
+                            issReq.data.map(issue => {
+                                if (!issue.pull_request) {
+                                    if (issue.state == "open") {
+                                        resultRepo.issuesAbiertas++;
+                                    };
+                                    resultRepo.issuesTotales++;
+                                }
+                            });
+                        });
+                    }
+
+                    orgRepos.push(resultRepo);
+
+                })).then(mostrarEstadisticas);
+            });
+        } catch (err) {
+            console.log("Por favor, introduce una URL perteneciente a una organizacion de GitHub.");
+        }
+    }
+
+    function mostrarEstadisticas() {
+        let numIssuesTotales = 0;
+        let numCommitsTotales = 0;
+        console.log("Buscando URL: " + urlOrg);
+        console.log("Nombre: " + orgRequest.data.name);
+        console.log("Descripción: " + orgRequest.data.description);
+        console.log("Enlace: " + orgRequest.data.blog);
+        console.log("\nRepositorios: ");
+        orgRepos.map(repo => {
+            console.log("\t" + repo.nombre);
+            console.log("\t\tNumero de Issues abiertas: " + repo.issuesAbiertas);
+            console.log("\t\tNumero de commits: " + repo.commits);
+            numIssuesTotales += repo.issuesTotales;
+            numCommitsTotales += repo.commits;
+        });
+        console.log("\n\nTotal: ");
+        console.log("\tNumero de Issues en todos los repositorios: " + numIssuesTotales);
+        console.log("\tNumero de Commits en todos los repositorios: " + numCommitsTotales);
+    }
+
 }
